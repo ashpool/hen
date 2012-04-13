@@ -50,6 +50,8 @@ To connect to the server:
 
 Registered users:
 * magnus:qwerty
+
 * svea:frog
+
 * bobby:12345
 
