@@ -1,7 +1,6 @@
 import unittest
 from hen.server import HenStreamServer, Client, Status
 
-
 class MakeFileStub():
 
     def __init__(self, line):
@@ -25,7 +24,6 @@ class SocketStub():
 
     def sendall(self, message):
         self.received_messages.append(message)
-
 
 class ServerTest(unittest.TestCase):
 
@@ -89,11 +87,10 @@ class ServerTest(unittest.TestCase):
 
     def test_parse_direct_message(self):
         # given Adam wants to send a direct message to Ben
-        from_client = self.client_a
         direct_message = "DM @ben Hello Ben!"
 
         # when
-        recipients, message = self.server.parse_direct_message(from_client, direct_message)
+        recipients, message = self.server.parse_direct_message(direct_message)
 
         # then
         self.assertEqual(['ben'], recipients)
@@ -104,9 +101,8 @@ class ServerTest(unittest.TestCase):
         self.server.dm_command(self.client_a, "DM @clemens Hello Clemens")
 
         #then
-        expected_message = "\n<adam whispers>Hello Clemens\n"
+        expected_message = "<adam whispers>Hello Clemens"
         self.assertEqual(expected_message, self.client_c.socket.received_messages[0])
-
 
     def test_get_list_message(self):
         # given clients have different statuses
@@ -121,7 +117,8 @@ class ServerTest(unittest.TestCase):
 """3 users online
 ben	AWAY
 clemens	DND
-adam	ONLINE"""
+adam	ONLINE
+"""
 
         self.assertEqual(expected_message, message)
 
@@ -130,10 +127,8 @@ adam	ONLINE"""
         self.server.list_command(self.client_a)
 
         # then
-        expected_message = "\n3 users online\nben\tONLINE\nclemens\tONLINE\nadam\tONLINE\n"
+        expected_message = "3 users online\nben\tONLINE\nclemens\tONLINE\nadam\tONLINE\n"
         self.assertEqual(expected_message, self.client_a.socket.received_messages[0])
-
-
 
     def test_help_command(self):
         # when
@@ -147,7 +142,7 @@ adam	ONLINE"""
         self.server.away_command(self.client_a)
 
         # then all clients receive a "Adam is away" message
-        expected_message = "\nadam is away\n"
+        expected_message = "adam is away\n"
         self.assertEqual(expected_message, self.client_a.socket.received_messages[0])
         self.assertEqual(expected_message, self.client_b.socket.received_messages[0])
         self.assertEqual(expected_message, self.client_c.socket.received_messages[0])
@@ -157,7 +152,7 @@ adam	ONLINE"""
         self.server.dnd_command(self.client_a)
 
         # then all clients receive a "Adam wishes not be disturb" message
-        expected_message = "\nadam wishes not be disturb\n"
+        expected_message = "adam wishes not to be disturb\n"
         self.assertEqual(expected_message, self.client_a.socket.received_messages[0])
         self.assertEqual(expected_message, self.client_b.socket.received_messages[0])
         self.assertEqual(expected_message, self.client_c.socket.received_messages[0])
@@ -167,7 +162,7 @@ adam	ONLINE"""
         self.server.online_command(self.client_a)
 
         # then all clients receive a "Adam is online" message
-        expected_message = "\nadam is online\n"
+        expected_message = "adam is online\n"
         self.assertEqual(expected_message, self.client_a.socket.received_messages[0])
         self.assertEqual(expected_message, self.client_b.socket.received_messages[0])
         self.assertEqual(expected_message, self.client_c.socket.received_messages[0])
@@ -185,6 +180,18 @@ adam	ONLINE"""
         # ... but not adam
         self.assertEqual(0, len(self.client_a.socket.received_messages))
 
+    def test_say_noting(self):
+        # when adam presses return on his keyboard
+        message = "\n"
+        self.server.say_command(self.client_a, message)
+
+        # then ben and clemens receive "adam -Hi guys!"
+        self.assertEqual(0, len(self.client_b.socket.received_messages))
+        self.assertEqual(0, len(self.client_c.socket.received_messages))
+
+        # ... but not adam
+        self.assertEqual(0, len(self.client_a.socket.received_messages))
+
     def test_is_loggedin(self):
         # given
         socket = SocketStub(["magnus", "qwerty"])
@@ -197,6 +204,24 @@ adam	ONLINE"""
 
         # then
         self.assertTrue(self.server.is_loggedin(address))
+
+    def test_login_twice(self):
+        # given
+        socket = SocketStub(["magnus", "qwerty"])
+        address = ("localhost", 50042)
+
+        client = self.server.login_client(socket, address)
+
+        duplicate_socket = SocketStub(["magnus", "qwerty"])
+        duplicate_address = ("localhost", 50043)
+
+        self.server.login_client(duplicate_socket, duplicate_address)
+
+        # then
+        self.assertTrue(self.server.is_loggedin(duplicate_address))
+        self.assertFalse(self.server.is_loggedin(address))
+
+        self.assertEqual("\nYou have been suspended because your account is used somewhere else.\n", client.socket.received_messages[-1])
 
     def test_login_client_with_a_non_registered_user(self):
         # given
@@ -215,6 +240,8 @@ adam	ONLINE"""
         # when
         self.server.handle(socket, address)
 
+        # then
+        self.assertFalse(self.server.is_loggedin(address))
 
     def test_handle_wrong_password(self):
         # given
@@ -224,6 +251,8 @@ adam	ONLINE"""
         # when
         self.server.handle(socket, address)
 
+        # then
+        self.assertFalse(self.server.is_loggedin(address))
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-"""Server that listens on port 6000.
+"""
+Telnet Chat Server that listens on port 6000.
 
 Connect to it with:
   telnet localhost 6000
-
-Terminate the connection by terminating telnet (typically Ctrl-] and then 'quit').
 """
 import re
 import gevent
 from gevent.server import StreamServer
+import sys
 
 class Status:
     ONLINE = "ONLINE"
@@ -23,7 +23,7 @@ class Client():
         self.status = Status.ONLINE
 
     def send_message(self, message):
-        self.socket.sendall("\n" + message + "\n")
+        self.socket.sendall(message)
 
 class HenStreamServer(StreamServer):
 
@@ -31,7 +31,7 @@ class HenStreamServer(StreamServer):
 """
 
               mmm,
-             /::* >
+             /::* > -Chit Chat!
     \        |::/
      Aaa..../:::\\
      \:::::::::::|
@@ -76,27 +76,27 @@ usage:
     def quit_command(self, client):
         print client.nick, "quit"
         del self.clients[client.address]
-        self.multicast(client.nick + " quit")
+        self.multicast(client.nick + " quit\n")
 
     def dm_command(self, client, line):
-        recipients, message = self.parse_direct_message(client, line)
+        recipients, message = self.parse_direct_message(line)
         if recipients and message:
             self.send_direct_message(client, recipients, message)
 
-    def parse_direct_message(self, client, line):
+    def parse_direct_message(self, line):
         occurences =  [m.start() for m in re.finditer('@', line)]
         recipients = []
         for e in occurences:
             recipients.append(line[e + 1:line.find(" ", e)].strip())
         print "recipients", recipients
-        if len(occurences) > 0:
+        if e and len(occurences) > 0:
             return recipients, line[e + len(recipients[-1]) + 2:]
 
     def send_direct_message(self, from_client, recipients, message):
         for k, client in self.clients.items():
             if client.nick in recipients:
                 if client.status == Status.DND:
-                    from_client.send_message(client.nick + " do not want to be disturbed")
+                    from_client.send_message(client.nick + " wishes not to be disturb")
                 elif client.status == Status.AWAY:
                     from_client.send_message(client.nick + " is away from keyboard")
                 client.send_message("<" + from_client.nick + " whispers>" + message)
@@ -111,25 +111,26 @@ usage:
         for k, c in self.clients.items():
             list.append(c.nick + "\t" + c.status)
         message = "\n".join(list)
-        return str(number_of_clients) + " user" + ("s" if number_of_clients > 1 else "") +  " online\n" + message
+        return str(number_of_clients) + " user" + ("s" if number_of_clients > 1 else "") +  " online\n" + message + "\n"
 
     def help_command(self, client):
-        client.send_message(HenStreamServer.HELP_MESSAGE)
+        client.send_message("\n" + HenStreamServer.HELP_MESSAGE)
 
     def away_command(self, client):
         client.status = Status.AWAY
-        self.multicast(client.nick + " is away")
+        self.multicast(client.nick + " is away\n")
 
     def dnd_command(self, client):
         client.status = Status.DND
-        self.multicast(client.nick + " wishes not be disturb")
+        self.multicast(client.nick + " wishes not to be disturb\n")
 
     def online_command(self, client):
         client.status = Status.ONLINE
-        self.multicast(client.nick + " is online")
+        self.multicast(client.nick + " is online\n")
 
     def say_command(self, client, message):
-        self.multicast(client.nick + " -" + message, [client])
+        if message and len(message.strip()) > 0:
+            self.multicast(client.nick + " -" + message + "\n", [client])
 
     def login_client(self, socket, address):
         socket.sendall("login:")
@@ -139,14 +140,23 @@ usage:
         password = self.read_input(socket)
 
         if nick in self.registered_users and self.registered_users[nick] == password:
+
+            for k, c in self.clients.items():
+                if c.nick == nick:
+                    self.logout_client(c)
+                    break
+
             client = Client(socket, nick, address)
             self.clients[address] = client
-            client.send_message("Welcome " + nick + "!\n Type HELP for help.")
-            self.multicast(nick + " connected", [client])
-            return True
+            client.send_message("\n" + "Welcome " + nick + "!\nType HELP for help.\n")
+            self.multicast(nick + " connected\n", [client])
+            return client
         else:
             socket.sendall("Sorry, try again!")
-            return False
+
+    def logout_client(self, client):
+        client.send_message("\nYou have been suspended because your account is used somewhere else.\n")
+        del self.clients[client.address]
 
     def is_loggedin(self, address):
         return address in self.clients
@@ -159,7 +169,6 @@ usage:
 
         gevent.joinall(receivers)
 
-    # this handler will be run for each incoming connection in a dedicated greenlet
     def handle(self, socket, address):
         print ('New connection from %s:%s' % address)
         socket.sendall(HenStreamServer.WELCOME_MESSAGE)
@@ -198,9 +207,15 @@ usage:
 if __name__ == '__main__':
     try:
         PORT = 6000
+        if len(sys.argv) > 1:
+            PORT = int(sys.argv[1])
+
         server = HenStreamServer(('0.0.0.0', PORT))
         print ('Starting server on port', PORT)
         server.serve_forever()
+    except ValueError:
+        print "usage: python server.py [port]"
+
     except KeyboardInterrupt:
         print "^C received, shutting down server"
 
