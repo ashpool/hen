@@ -49,6 +49,7 @@ To connect to the server:
 > telnet hostname 6000
 
 Registered users:
+
 * magnus:qwerty
 
 * svea:frog
