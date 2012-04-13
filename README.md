@@ -25,7 +25,7 @@ Welcome to the HEveNtful chat server!
 * All users get a notification when a user connects or disconnects
 
 
-## Installing dependencies on OSX
+## Installing dependencies (tested on OSX)
 
 > brew install libevent
 
