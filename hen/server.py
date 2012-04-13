@@ -170,6 +170,9 @@ usage:
         gevent.joinall(receivers)
 
     def handle(self, socket, address):
+        """
+        Will be called on each client request.
+        """
         print ('New connection from %s:%s' % address)
         socket.sendall(HenStreamServer.WELCOME_MESSAGE)
 
