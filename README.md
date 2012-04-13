@@ -42,8 +42,8 @@ Welcome to the HEveNtful chat server!
 
 ## Usage
 
-To start the server:
-> python server.py
+To start the server (default port is 6000):
+> python server.py [port]
 
 To connect to the server:
 > telnet hostname 6000
@@ -53,7 +53,3 @@ Registered users:
 * svea:frog
 * bobby:12345
 
-
-## Known issues
-
-* Logging in as the same user twice may cause trouble
