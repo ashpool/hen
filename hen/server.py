@@ -130,7 +130,7 @@ usage:
 
     def say_command(self, client, message):
         if message and len(message.strip()) > 0:
-            self.multicast(client.nick + " -" + message + "\n", [client])
+            self.multicast(client.nick + " -" + message, [client])
 
     def login_client(self, socket, address):
         socket.sendall("login:")
