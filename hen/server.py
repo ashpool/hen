@@ -25,7 +25,6 @@ class Client():
     def send_message(self, message):
         self.socket.sendall("\n" + message + "\n")
 
-
 class HenStreamServer(StreamServer):
 
     WELCOME_MESSAGE =\
@@ -40,9 +39,9 @@ class HenStreamServer(StreamServer):
        \:::::::/
          \:/\:/
           |_  \__
------------------------------------------
+-------------------------------------
 Welcome to the HEveNtful chat server!
------------------------------------------
+-------------------------------------
 
 """
 
@@ -61,7 +60,7 @@ usage:
     def __init__(self, listener, handle=None, backlog=None, spawn='default', **ssl_args):
         super(HenStreamServer, self).__init__(listener, handle, backlog, spawn, **ssl_args)
         self.registered_users = {"magnus":"qwerty", "bobby":"12345", "svea":"frog"}
-        self.clients = {}
+        self.clients = {} # identified by address
 
     def read_input(self, socket):
         fileobj = socket.makefile()
@@ -100,7 +99,6 @@ usage:
                     from_client.send_message(client.nick + " do not want to be disturbed")
                 elif client.status == Status.AWAY:
                     from_client.send_message(client.nick + " is away from keyboard")
-
                 client.send_message("<" + from_client.nick + " whispers>" + message)
 
     def list_command(self, client):
@@ -114,6 +112,24 @@ usage:
             list.append(c.nick + "\t" + c.status)
         message = "\n".join(list)
         return str(number_of_clients) + " user" + ("s" if number_of_clients > 1 else "") +  " online\n" + message
+
+    def help_command(self, client):
+        client.send_message(HenStreamServer.HELP_MESSAGE)
+
+    def away_command(self, client):
+        client.status = Status.AWAY
+        self.multicast(client.nick + " is away")
+
+    def dnd_command(self, client):
+        client.status = Status.DND
+        self.multicast(client.nick + " wishes not be disturb")
+
+    def online_command(self, client):
+        client.status = Status.ONLINE
+        self.multicast(client.nick + " is online")
+
+    def say_command(self, client, message):
+        self.multicast(client.nick + " -" + message, [client])
 
     def login_client(self, socket, address):
         socket.sendall("login:")
@@ -143,8 +159,6 @@ usage:
 
         gevent.joinall(receivers)
 
-
-
     # this handler will be run for each incoming connection in a dedicated greenlet
     def handle(self, socket, address):
         print ('New connection from %s:%s' % address)
@@ -156,7 +170,6 @@ usage:
 
         client = self.clients[address]
 
-        # using a makefile because we want to use readline()
         fileobj = socket.makefile()
 
         while True:
@@ -172,18 +185,15 @@ usage:
             elif line.startswith("LIST"):
                 self.list_command(client)
             elif line.startswith("HELP"):
-                client.send_message(HenStreamServer.HELP_MESSAGE)
+                self.help_command(client)
             elif line.startswith(Status.AWAY):
-                client.status = Status.AWAY
-                self.multicast(client.nick + " is away")
+                self.away_command(client)
             elif line.startswith(Status.DND):
-                client.status = Status.DND
-                self.multicast("Do not disturb " + client.nick)
+                self.dnd_command(client)
             elif line.startswith(Status.ONLINE):
-                client.status = Status.ONLINE
-                self.multicast(client.nick + " is online")
+                self.online_command(client)
             else:
-                self.multicast(client.nick + " -" +line)
+                self.say_command(client, line)
 
 if __name__ == '__main__':
     try:

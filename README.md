@@ -47,3 +47,13 @@ To start the server:
 
 To connect to the server:
 > telnet hostname 6000
+
+Registered users:
+* magnus:qwerty
+* svea:frog
+* bobby:12345
+
+
+## Known issues
+
+* Logging in as the same user twice may cause trouble
